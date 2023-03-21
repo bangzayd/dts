@@ -1,0 +1,83 @@
+lab public-review start
+
+source operator1-production-rc
+
+openstack network create \
+--external \
+--share \
+--provider-network-type flat \
+--provider-physical-network datacentre \
+provider-datacentre
+
+openstack subnet create \
+--subnet-range 172.25.250.0/24 \
+--gateway 172.25.250.254 \
+--dns-nameserver 172.25.250.254 \
+--allocation-pool start=172.25.250.101,end=172.25.250.189 \
+--no-dhcp \
+--network provider-datacentre \
+provider-subnet-172.25.250
+
+source developer1-production-rc
+
+openstack router create \
+production-router1
+
+openstack router add \
+subnet production-router1 \
+production-subnet1
+
+openstack router set \
+--external-gateway provider-datacentre \
+production-router1
+
+openstack security group \
+create production-secgroup1
+
+openstack security group rule \
+create --protocol tcp \
+--dst-port 22 \
+production-secgroup1
+
+openstack security group \
+rule create --protocol tcp \
+--dst-port 80 \
+production-secgroup1
+
+openstack security group \
+rule create --protocol icmp \
+production-secgroup1
+
+openstack keypair create \
+production-keypair1 > /home/student/Downloads/production-keypair1.pem
+
+chmod 600 \
+/home/student/Downloads/production-keypair1.pem
+
+openstack floating ip \
+create provider-datacentre
+
+openstack server create \
+--image rhel8-web \
+--flavor default \
+--nic net-id=production-network1 \
+--security-group production-secgroup1 \
+--key-name production-keypair1 \
+--wait \
+production-server9
+
+openstack server \
+add floating ip \
+production-server9 172.25.250.154
+
+curl http://172.25.250.154
+
+ssh \
+-i /home/student/Downloads/production-keypair1.pem \
+cloud-user@172.25.250.154
+
+ping -c3 materials.example.com
+
+exit
+
+===321==
